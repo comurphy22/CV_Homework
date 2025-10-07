@@ -24,11 +24,9 @@ EXPECTED_IMAGES = [
 
 
 def find_filterbank(mat):
-    # try common variable names
     for k in ("filterBank", "filters", "F", "LMfilters", "bank", "filter_bank", "fb"):
         if k in mat:
             return mat[k]
-    # fallback: look for an ndarray with 3 dims and a dimension of 48
     for k, v in mat.items():
         if isinstance(v, np.ndarray) and v.ndim in (3, 4):
             if 48 in v.shape:
@@ -37,26 +35,20 @@ def find_filterbank(mat):
 
 
 def interpret_filters_array(arr):
-    # Accept many shapes: (h,w,n), (n,h,w), (n,1,h,w) etc. Return list of 2D filters.
     if arr is None:
         return []
     if not isinstance(arr, np.ndarray):
         arr = np.asarray(arr)
     if arr.ndim == 3:
         h, w, n = arr.shape
-        # common case: (h,w,n)
         if n == 48:
             return [arr[:, :, i] for i in range(n)]
-        # maybe (n,h,w)
         if h == 48:
             return [arr[i, :, :] for i in range(h)]
     if arr.ndim == 4:
-        # maybe (n, h, w, 1) or (n,1,h,w)
         s = arr.shape
-        # try to squeeze
         arr_s = np.squeeze(arr)
         return interpret_filters_array(arr_s)
-    # fallback: try to reshape to (h,w,48)
     flat = arr.ravel()
     if flat.size % 48 == 0:
         per = flat.size // 48
@@ -76,7 +68,6 @@ def normalize(x):
 
 
 def visualize_filter(filter_kernel, responses_dict, out_path, idx):
-    # create 4x2 grid: row0 filter + blank, row1 cardinal1/cardinal2, row2 leopard1/leopard2, row3 panda1/panda2
     fig, axes = plt.subplots(4, 2, figsize=(6, 12))
     axes = axes.reshape(-1)
 
@@ -112,7 +103,6 @@ def main():
     ensure_dir(out_dir)
     ensure_dir(os.path.join(out_dir, 'filters'))
 
-    # load images
     images = {}
     for name, fname in EXPECTED_IMAGES:
         path = os.path.join(data_dir, fname)
@@ -125,7 +115,6 @@ def main():
         print("No images found in data dir. Exiting.")
         return
 
-    # load filters
     if not os.path.exists(args.filters_mat):
         raise FileNotFoundError(f"filters.mat not found at {args.filters_mat}")
     mat = loadmat(args.filters_mat)
@@ -136,16 +125,13 @@ def main():
     print(f"Found {len(filters)} filters")
 
     for i, filt in enumerate(filters):
-        # ensure 2D
         filt = np.squeeze(np.array(filt, dtype=float))
-        # compute responses
         responses = {}
         for k, img in images.items():
             responses[k] = signal.convolve2d(img, filt, mode='same', boundary='symm')
         out_path = os.path.join(out_dir, 'filters', f'filter_{i+1:02d}.png')
         visualize_filter(filt, responses, out_path, i+1)
 
-        # optionally write the two special outputs
         if args.same_filter is not None and i == args.same_filter:
             plt.imsave(os.path.join(out_dir, 'same_animal_similar.png'), normalize(responses.get('cardinal1', np.zeros_like(next(iter(images.values()))))), cmap='jet')
         if args.diff_filter is not None and i == args.diff_filter:

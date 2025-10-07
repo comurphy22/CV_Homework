@@ -22,7 +22,6 @@ def find_filterbank(mat):
     for k in ("filterBank", "filters", "F", "LMfilters", "bank", "filter_bank", "fb"):
         if k in mat:
             return mat[k]
-    # fallback: look for an ndarray with 3 dims and a dimension of 48
     for k, v in mat.items():
         if isinstance(v, np.ndarray) and v.ndim in (3, 4):
             if 48 in v.shape:
@@ -45,7 +44,6 @@ def interpret_filters_array(arr):
     if arr.ndim == 4:
         arr_s = np.squeeze(arr)
         return interpret_filters_array(arr_s)
-    # fallback: try to reshape to (h,w,48)
     flat = arr.ravel()
     if flat.size % 48 == 0:
         per = flat.size // 48
@@ -92,7 +90,6 @@ def texture_repr(responses):
     Returns:
         repr_vector: 1D numpy array (texture representation)
     """
-    # Compute mean and standard deviation for each filter response
     features = []
     for response in responses:
         features.append(np.mean(response))

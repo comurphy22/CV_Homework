@@ -37,7 +37,7 @@ def visualize_representation(repr_vec, title, save_path=None):
     if save_path:
         plt.savefig(save_path, dpi=150, bbox_inches='tight')
         print(f"Saved plot: {save_path}")
-    plt.close()  # Close the figure to free memory
+    plt.close()
 
 
 def main():
@@ -53,7 +53,6 @@ def main():
     ensure_dir(out_dir)
     ensure_dir(os.path.join(out_dir, 'part_b'))
 
-    # Load images
     images = {}
     for name, fname in EXPECTED_IMAGES:
         path = os.path.join(data_dir, fname)
@@ -66,11 +65,9 @@ def main():
         print("No images found in data dir. Exiting.")
         return
 
-    # Load filters
     filters = load_filters(args.filters_mat)
     print(f"Loaded {len(filters)} filters")
 
-    # Group images by category
     cardinals = [images[k] for k in ["cardinal1", "cardinal2"] if k in images]
     leopards = [images[k] for k in ["leopard1", "leopard2"] if k in images]
     pandas = [images[k] for k in ["panda1", "panda2"] if k in images]
@@ -79,7 +76,6 @@ def main():
     print(f"Leopard images: {len(leopards)}")
     print(f"Panda images: {len(pandas)}")
 
-    # Compute individual texture representations
     print("\n=== Individual Texture Representations ===")
     individual_reprs = {}
     for name, image in images.items():
@@ -88,7 +84,6 @@ def main():
         individual_reprs[name] = repr_vec
         print(f"{name}: {len(repr_vec)} features")
 
-    # Compute concatenated representations
     print("\n=== Concatenated Texture Representations ===")
     cardinal_concat = texture_repr_concat(cardinals, filters) if cardinals else np.array([])
     leopard_concat = texture_repr_concat(leopards, filters) if leopards else np.array([])
@@ -98,7 +93,6 @@ def main():
     print(f"Leopard concatenated: {len(leopard_concat)} features")
     print(f"Panda concatenated: {len(panda_concat)} features")
 
-    # Compute mean representations
     print("\n=== Mean Texture Representations ===")
     cardinal_mean = texture_repr_mean(cardinals, filters) if cardinals else np.array([])
     leopard_mean = texture_repr_mean(leopards, filters) if leopards else np.array([])
@@ -108,10 +102,8 @@ def main():
     print(f"Leopard mean: {len(leopard_mean)} features")
     print(f"Panda mean: {len(panda_mean)} features")
 
-    # Visualize some representations
     out_b = os.path.join(out_dir, 'part_b')
     
-    # Plot individual representations for first image of each category
     if 'cardinal1' in individual_reprs:
         visualize_representation(individual_reprs['cardinal1'], 'Cardinal1 Individual Representation',
                                os.path.join(out_b, 'cardinal1_individual.png'))
@@ -124,7 +116,6 @@ def main():
         visualize_representation(individual_reprs['panda1'], 'Panda1 Individual Representation',
                                os.path.join(out_b, 'panda1_individual.png'))
 
-    # Plot concatenated representations
     if len(cardinal_concat) > 0:
         visualize_representation(cardinal_concat, 'Cardinal Concatenated Representation',
                                os.path.join(out_b, 'cardinal_concat.png'))
@@ -137,7 +128,6 @@ def main():
         visualize_representation(panda_concat, 'Panda Concatenated Representation',
                                os.path.join(out_b, 'panda_concat.png'))
 
-    # Plot mean representations
     if len(cardinal_mean) > 0:
         visualize_representation(cardinal_mean, 'Cardinal Mean Representation',
                                os.path.join(out_b, 'cardinal_mean.png'))
@@ -150,7 +140,6 @@ def main():
         visualize_representation(panda_mean, 'Panda Mean Representation',
                                os.path.join(out_b, 'panda_mean.png'))
 
-    # Save representations to files
     np.savez(os.path.join(out_b, 'texture_representations.npz'),
              cardinal1=individual_reprs.get('cardinal1', np.array([])),
              cardinal2=individual_reprs.get('cardinal2', np.array([])),
@@ -168,7 +157,6 @@ def main():
     print(f"\nTexture representations saved to {os.path.join(out_b, 'texture_representations.npz')}")
     print(f"Visualization plots saved to {out_b}/")
 
-    # Compare representations - compute some basic statistics
     print("\n=== Representation Statistics ===")
     if len(individual_reprs) > 0:
         first_repr = list(individual_reprs.values())[0]

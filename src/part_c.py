@@ -32,15 +32,12 @@ def gaussian_smooth(image, sigma):
 
 def compute_gradients(image):
     """Compute gradient magnitude and direction using Sobel operators."""
-    # Sobel kernels
     sobel_x = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=float)
     sobel_y = np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]], dtype=float)
     
-    # Compute gradients
     grad_x = ndimage.convolve(image, sobel_x)
     grad_y = ndimage.convolve(image, sobel_y)
     
-    # Magnitude and direction
     magnitude = np.sqrt(grad_x**2 + grad_y**2)
     direction = np.arctan2(grad_y, grad_x)
     
@@ -52,26 +49,19 @@ def non_maximum_suppression(magnitude, direction):
     height, width = magnitude.shape
     suppressed = np.zeros_like(magnitude)
     
-    # Convert angle to degrees and normalize to 0-180
     angle = np.rad2deg(direction) % 180
     
     for i in range(1, height - 1):
         for j in range(1, width - 1):
-            # Get the direction category (0, 45, 90, 135 degrees)
             if (0 <= angle[i, j] < 22.5) or (157.5 <= angle[i, j] <= 180):
-                # 0 degrees - horizontal edge
                 neighbors = [magnitude[i, j-1], magnitude[i, j+1]]
             elif 22.5 <= angle[i, j] < 67.5:
-                # 45 degrees - diagonal edge
                 neighbors = [magnitude[i-1, j+1], magnitude[i+1, j-1]]
             elif 67.5 <= angle[i, j] < 112.5:
-                # 90 degrees - vertical edge
                 neighbors = [magnitude[i-1, j], magnitude[i+1, j]]
-            else:  # 112.5 <= angle[i, j] < 157.5
-                # 135 degrees - diagonal edge
+            else:
                 neighbors = [magnitude[i-1, j-1], magnitude[i+1, j+1]]
             
-            # Keep pixel if it's a local maximum
             if magnitude[i, j] >= max(neighbors):
                 suppressed[i, j] = magnitude[i, j]
     
@@ -83,7 +73,6 @@ def double_threshold(image, low_thresh, high_thresh):
     strong_edges = image > high_thresh
     weak_edges = (image >= low_thresh) & (image <= high_thresh)
     
-    # Create output image: 0 = non-edge, 1 = weak edge, 2 = strong edge
     thresholded = np.zeros_like(image, dtype=np.uint8)
     thresholded[weak_edges] = 1
     thresholded[strong_edges] = 2
@@ -96,18 +85,15 @@ def edge_tracking_by_hysteresis(thresholded):
     height, width = thresholded.shape
     edges = np.zeros_like(thresholded, dtype=bool)
     
-    # Start with strong edges
     strong_edges = (thresholded == 2)
     edges[strong_edges] = True
     
-    # Track weak edges connected to strong edges
     changed = True
     while changed:
         changed = False
         for i in range(1, height - 1):
             for j in range(1, width - 1):
-                if thresholded[i, j] == 1 and not edges[i, j]:  # Weak edge not yet confirmed
-                    # Check 8-connected neighborhood for strong edges
+                if thresholded[i, j] == 1 and not edges[i, j]:
                     neighborhood = edges[i-1:i+2, j-1:j+2]
                     if np.any(neighborhood):
                         edges[i, j] = True
@@ -118,19 +104,14 @@ def edge_tracking_by_hysteresis(thresholded):
 
 def canny_edge_detection(image, sigma=1.0, low_thresh=0.1, high_thresh=0.2):
     """Complete Canny edge detection pipeline."""
-    # Step 1: Gaussian smoothing
     smoothed = gaussian_smooth(image, sigma)
     
-    # Step 2: Compute gradients
     magnitude, direction, grad_x, grad_y = compute_gradients(smoothed)
     
-    # Step 3: Non-maximum suppression
     suppressed = non_maximum_suppression(magnitude, direction)
     
-    # Step 4: Double thresholding
     thresholded = double_threshold(suppressed, low_thresh, high_thresh)
     
-    # Step 5: Edge tracking by hysteresis
     edges = edge_tracking_by_hysteresis(thresholded)
     
     return {
@@ -150,42 +131,34 @@ def visualize_canny_steps(image_name, original, results, save_dir):
     fig, axes = plt.subplots(2, 4, figsize=(16, 8))
     axes = axes.ravel()
     
-    # Original image
     axes[0].imshow(original, cmap='gray')
     axes[0].set_title('Original')
     axes[0].axis('off')
     
-    # Smoothed image
     axes[1].imshow(results['smoothed'], cmap='gray')
     axes[1].set_title(f'Gaussian Smoothed')
     axes[1].axis('off')
     
-    # Gradient magnitude
     axes[2].imshow(results['magnitude'], cmap='gray')
     axes[2].set_title('Gradient Magnitude')
     axes[2].axis('off')
     
-    # Gradient direction
     axes[3].imshow(results['direction'], cmap='hsv')
     axes[3].set_title('Gradient Direction')
     axes[3].axis('off')
     
-    # Non-maximum suppression
     axes[4].imshow(results['suppressed'], cmap='gray')
     axes[4].set_title('Non-Max Suppression')
     axes[4].axis('off')
     
-    # Double thresholding
     axes[5].imshow(results['thresholded'], cmap='gray')
     axes[5].set_title('Double Threshold')
     axes[5].axis('off')
     
-    # Final edges
     axes[6].imshow(results['edges'], cmap='gray')
     axes[6].set_title('Final Edges')
     axes[6].axis('off')
     
-    # Hide last subplot
     axes[7].axis('off')
     
     plt.suptitle(f'Canny Edge Detection Steps - {image_name}')
@@ -199,15 +172,12 @@ def visualize_canny_steps(image_name, original, results, save_dir):
 
 def save_individual_outputs(image_name, results, save_dir):
     """Save individual gradient and edge images."""
-    # Save gradient magnitude
     plt.imsave(os.path.join(save_dir, f'{image_name}_gradient_magnitude.png'), 
                results['magnitude'], cmap='gray')
     
-    # Save gradient direction
     plt.imsave(os.path.join(save_dir, f'{image_name}_gradient_direction.png'), 
                results['direction'], cmap='hsv')
     
-    # Save final edges
     plt.imsave(os.path.join(save_dir, f'{image_name}_edges.png'), 
                results['edges'], cmap='gray')
     
@@ -231,7 +201,6 @@ def main():
     
     save_dir = os.path.join(out_dir, 'part_c')
 
-    # Load images
     images = {}
     for name, fname in EXPECTED_IMAGES:
         path = os.path.join(data_dir, fname)
@@ -247,17 +216,13 @@ def main():
     print(f"Processing {len(images)} images with Canny edge detection")
     print(f"Parameters: sigma={args.sigma}, low_thresh={args.low_thresh}, high_thresh={args.high_thresh}")
 
-    # Process each image
     for name, image in images.items():
         print(f"\nProcessing {name}...")
         
-        # Apply Canny edge detection
         results = canny_edge_detection(image, args.sigma, args.low_thresh, args.high_thresh)
         
-        # Visualize all steps
         visualize_canny_steps(name, image, results, save_dir)
         
-        # Save individual outputs
         save_individual_outputs(name, results, save_dir)
 
     print(f"\nCanny edge detection completed!")

@@ -31,7 +31,6 @@ def load_texture_representations(part_b_dir):
     """Load texture representations from Part B."""
     representations = {}
     
-    # Load the NPZ file with all representations
     npz_path = os.path.join(part_b_dir, 'texture_representations.npz')
     if not os.path.exists(npz_path):
         print(f"Warning: {npz_path} not found. Skipping texture representations.")
@@ -39,18 +38,15 @@ def load_texture_representations(part_b_dir):
     
     data = np.load(npz_path)
     
-    # Individual representations
     for img_name in EXPECTED_IMAGES:
         if img_name in data:
             representations[f'{img_name}_individual'] = data[img_name]
     
-    # Mean representations
     for category in ['cardinal', 'leopard', 'panda']:
         key = f'{category}_mean'
         if key in data:
             representations[f'{category}_mean'] = data[key]
     
-    # Concatenated representations
     for category in ['cardinal', 'leopard', 'panda']:
         key = f'{category}_concat'
         if key in data:
@@ -63,7 +59,6 @@ def load_bow_representations(part_e_dir):
     """Load bag-of-words representations from Part E."""
     representations = {}
     
-    # Load the NPZ file with BoW histograms
     npz_path = os.path.join(part_e_dir, 'bow_histograms.npz')
     if not os.path.exists(npz_path):
         print(f"Warning: {npz_path} not found. Skipping BoW representations.")
@@ -73,7 +68,6 @@ def load_bow_representations(part_e_dir):
     histograms = data['histograms']
     image_names = data['image_names']
     
-    # Store individual BoW representations
     for i, img_name in enumerate(image_names):
         representations[f'{img_name}_bow'] = histograms[i]
     
@@ -83,7 +77,6 @@ def load_bow_representations(part_e_dir):
 def compute_within_between_distances(representations, representation_type):
     """Compute within-class and between-class distances for a representation type."""
     
-    # Get representations for this type
     type_reprs = {}
     for img_name in EXPECTED_IMAGES:
         key = f'{img_name}_{representation_type}'
@@ -93,17 +86,14 @@ def compute_within_between_distances(representations, representation_type):
     if len(type_reprs) < 2:
         return [], [], 0.0, 0.0, 0.0
     
-    # Create arrays for distance computation
     img_names = list(type_reprs.keys())
     repr_matrix = np.array([type_reprs[name] for name in img_names])
     
-    # Compute pairwise distances
     distance_matrix = pairwise_distances(repr_matrix, metric='euclidean')
     
     within_class_distances = []
     between_class_distances = []
     
-    # Within-class distances (same animal category)
     for category, category_images in CATEGORIES.items():
         category_indices = [i for i, name in enumerate(img_names) if name in category_images]
         
@@ -112,12 +102,10 @@ def compute_within_between_distances(representations, representation_type):
                 idx_i, idx_j = category_indices[i], category_indices[j]
                 within_class_distances.append(distance_matrix[idx_i, idx_j])
     
-    # Between-class distances (different animal categories)
     for i in range(len(img_names)):
         for j in range(i+1, len(img_names)):
             name_i, name_j = img_names[i], img_names[j]
             
-            # Check if they belong to different categories
             category_i = None
             category_j = None
             for cat, images in CATEGORIES.items():
@@ -129,7 +117,6 @@ def compute_within_between_distances(representations, representation_type):
             if category_i != category_j and category_i is not None and category_j is not None:
                 between_class_distances.append(distance_matrix[i, j])
     
-    # Compute statistics
     avg_within = np.mean(within_class_distances) if within_class_distances else 0.0
     avg_between = np.mean(between_class_distances) if between_class_distances else 0.0
     ratio = avg_between / avg_within if avg_within > 0 else float('inf')
@@ -141,7 +128,6 @@ def analyze_special_representations(representations):
     """Analyze the special texture representations (mean and concatenated)."""
     results = {}
     
-    # Mean representations
     mean_reprs = {}
     for category in ['cardinal', 'leopard', 'panda']:
         key = f'{category}_mean'
@@ -159,7 +145,6 @@ def analyze_special_representations(representations):
                 pair = f'{categories[i]}-{categories[j]}'
                 results['mean_distances'][pair] = distance_matrix[i, j]
     
-    # Concatenated representations
     concat_reprs = {}
     for category in ['cardinal', 'leopard', 'panda']:
         key = f'{category}_concat'
@@ -199,7 +184,6 @@ def visualize_comparison_results(results, save_path):
     
     x_pos = np.arange(len(representation_types))
     
-    # Plot 1: Average distances comparison
     axes[0, 0].bar(x_pos - 0.2, avg_within_list, 0.4, label='Within-class', alpha=0.7)
     axes[0, 0].bar(x_pos + 0.2, avg_between_list, 0.4, label='Between-class', alpha=0.7)
     axes[0, 0].set_xlabel('Representation Type')
@@ -210,7 +194,6 @@ def visualize_comparison_results(results, save_path):
     axes[0, 0].legend()
     axes[0, 0].grid(True, alpha=0.3)
     
-    # Plot 2: Between/Within ratios
     bars = axes[0, 1].bar(x_pos, ratios, alpha=0.7, color='green')
     axes[0, 1].set_xlabel('Representation Type')
     axes[0, 1].set_ylabel('Between/Within Ratio')
@@ -219,13 +202,11 @@ def visualize_comparison_results(results, save_path):
     axes[0, 1].set_xticklabels(representation_types, rotation=45, ha='right')
     axes[0, 1].grid(True, alpha=0.3)
     
-    # Add ratio values on bars
     for bar, ratio in zip(bars, ratios):
         height = bar.get_height()
         axes[0, 1].text(bar.get_x() + bar.get_width()/2., height + 0.01,
                        f'{ratio:.3f}', ha='center', va='bottom')
     
-    # Plot 3: Distance distributions
     all_within = []
     all_between = []
     labels = []
@@ -246,7 +227,6 @@ def visualize_comparison_results(results, save_path):
         axes[1, 0].legend()
         axes[1, 0].grid(True, alpha=0.3)
     
-    # Plot 4: Summary text
     axes[1, 1].axis('off')
     summary_text = "Summary Statistics:\n\n"
     
@@ -395,15 +375,12 @@ def main():
 
     print("Loading representations from previous parts...")
     
-    # Load all representations
     all_representations = {}
     
-    # Load texture representations from Part B
     texture_reprs = load_texture_representations(part_b_dir)
     all_representations.update(texture_reprs)
     print(f"Loaded {len(texture_reprs)} texture representations")
     
-    # Load BoW representations from Part E
     bow_reprs = load_bow_representations(part_e_dir)
     all_representations.update(bow_reprs)
     print(f"Loaded {len(bow_reprs)} BoW representations")
@@ -414,10 +391,8 @@ def main():
 
     print(f"\nAnalyzing {len(all_representations)} total representations...")
     
-    # Analyze each representation type
     results = {}
     
-    # Individual texture representations
     print("Analyzing individual texture representations...")
     within, between, avg_within, avg_between, ratio = compute_within_between_distances(
         all_representations, 'individual')
@@ -430,7 +405,6 @@ def main():
             'ratio': ratio
         }
     
-    # SIFT BoW representations
     print("Analyzing SIFT BoW representations...")
     within, between, avg_within, avg_between, ratio = compute_within_between_distances(
         all_representations, 'bow')
@@ -443,11 +417,9 @@ def main():
             'ratio': ratio
         }
     
-    # Analyze special representations
     print("Analyzing special texture representations...")
     special_results = analyze_special_representations(all_representations)
     
-    # Print summary
     print(f"\n=== COMPARISON RESULTS ===")
     for repr_type, data in results.items():
         name = repr_type.replace('_', ' ').title()
@@ -457,7 +429,6 @@ def main():
         print(f"  Between/within ratio: {data['ratio']:.6f}")
         print()
     
-    # Find best representation
     best_ratio = 0
     best_repr = ""
     for repr_type, data in results.items():
@@ -468,15 +439,12 @@ def main():
     if best_repr:
         print(f"Best discriminative power: {best_repr} (ratio: {best_ratio:.3f})")
     
-    # Generate visualizations
     print(f"\nGenerating visualizations...")
     visualize_comparison_results(results, os.path.join(save_dir, 'comparison_results.png'))
     
-    # Generate comprehensive report
     print(f"Generating comprehensive report...")
     generate_report(results, special_results, os.path.join(save_dir, 'results.txt'))
     
-    # Save detailed results to NPZ
     np.savez(os.path.join(save_dir, 'comparison_data.npz'),
              results=results, special_results=special_results)
     

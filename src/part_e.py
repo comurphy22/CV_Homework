@@ -65,21 +65,17 @@ def extract_patch(image, x, y, patch_size, orientation=0):
     half_size = patch_size // 2
     height, width = image.shape
     
-    # Create coordinate grids for the patch
     patch_coords = np.mgrid[-half_size:half_size+1, -half_size:half_size+1]
     
-    # Rotate coordinates by -orientation to normalize orientation
     cos_o = np.cos(-orientation)
     sin_o = np.sin(-orientation)
     
     rotated_x = cos_o * patch_coords[1] - sin_o * patch_coords[0] + x
     rotated_y = sin_o * patch_coords[1] + cos_o * patch_coords[0] + y
     
-    # Use bilinear interpolation for sampling
     patch = ndimage.map_coordinates(image, [rotated_y, rotated_x], 
                                    order=1, mode='constant', cval=0)
     
-    # Normalize patch to zero mean, unit variance
     if patch.std() > 1e-10:
         patch = (patch - patch.mean()) / patch.std()
     else:
@@ -102,7 +98,6 @@ def compute_sift_descriptor(patch, num_bins=8, grid_size=4):
     patch_size = patch.shape[0]
     cell_size = patch_size // grid_size
     
-    # Compute gradients
     grad_x = ndimage.convolve1d(patch, [-1, 0, 1], axis=1)
     grad_y = ndimage.convolve1d(patch, [-1, 0, 1], axis=0)
     
@@ -111,10 +106,8 @@ def compute_sift_descriptor(patch, num_bins=8, grid_size=4):
     
     descriptor = []
     
-    # Process each spatial cell
     for i in range(grid_size):
         for j in range(grid_size):
-            # Extract cell
             y_start = i * cell_size
             y_end = min((i + 1) * cell_size, patch_size)
             x_start = j * cell_size
@@ -123,17 +116,15 @@ def compute_sift_descriptor(patch, num_bins=8, grid_size=4):
             cell_mag = magnitude[y_start:y_end, x_start:x_end]
             cell_ori = orientation[y_start:y_end, x_start:x_end]
             
-            # Create orientation histogram
             hist, _ = np.histogram(cell_ori, bins=num_bins, 
                                  range=(-np.pi, np.pi), weights=cell_mag)
             descriptor.extend(hist)
     
     descriptor = np.array(descriptor)
     
-    # Normalize and threshold (SIFT normalization)
     if np.linalg.norm(descriptor) > 1e-10:
         descriptor = descriptor / np.linalg.norm(descriptor)
-        descriptor = np.clip(descriptor, 0, 0.2)  # Threshold at 0.2
+        descriptor = np.clip(descriptor, 0, 0.2)
         if np.linalg.norm(descriptor) > 1e-10:
             descriptor = descriptor / np.linalg.norm(descriptor)
     
@@ -149,7 +140,6 @@ def extract_descriptors_from_image(image, keypoints, patch_size=16):
         x, y = kpt['x'], kpt['y']
         orientation = kpt['orientation']
         
-        # Check if patch is within image bounds
         half_size = patch_size // 2
         if (x - half_size >= 0 and x + half_size < image.shape[1] and
             y - half_size >= 0 and y + half_size < image.shape[0]):
@@ -173,14 +163,12 @@ def build_visual_vocabulary(all_descriptors, vocab_size=50):
         kmeans: Trained K-means model
         vocabulary: Cluster centers (visual words)
     """
-    # Concatenate all descriptors
     if len(all_descriptors) == 0:
         raise ValueError("No descriptors provided for vocabulary building")
     
     concatenated = np.vstack(all_descriptors)
     print(f"Building vocabulary from {len(concatenated)} descriptors")
     
-    # Perform K-means clustering
     kmeans = KMeans(n_clusters=vocab_size, random_state=42, n_init=10)
     kmeans.fit(concatenated)
     
@@ -202,13 +190,10 @@ def compute_bow_histogram(descriptors, kmeans, vocab_size):
     if len(descriptors) == 0:
         return np.zeros(vocab_size)
     
-    # Assign descriptors to visual words
     word_assignments = kmeans.predict(descriptors)
     
-    # Create histogram
     histogram, _ = np.histogram(word_assignments, bins=vocab_size, range=(0, vocab_size))
     
-    # Normalize histogram
     if histogram.sum() > 0:
         histogram = histogram.astype(float) / histogram.sum()
     
@@ -248,7 +233,6 @@ def visualize_distance_matrix(distance_matrix, image_names, save_path):
     ax.set_xticklabels(image_names, rotation=45)
     ax.set_yticklabels(image_names)
     
-    # Add distance values to cells
     for i in range(len(image_names)):
         for j in range(len(image_names)):
             ax.text(j, i, f'{distance_matrix[i, j]:.3f}', 
@@ -279,7 +263,6 @@ def main():
     save_dir = os.path.join(out_dir, 'part_e')
     keypoints_dir = os.path.join(out_dir, 'part_d')
 
-    # Load images
     images = {}
     for name, fname in EXPECTED_IMAGES:
         path = os.path.join(data_dir, fname)
@@ -295,7 +278,6 @@ def main():
     print(f"Processing {len(images)} images for SIFT BoW representation")
     print(f"Parameters: vocab_size={args.vocab_size}, patch_size={args.patch_size}")
 
-    # Extract descriptors from all images
     all_descriptors = []
     image_descriptors = {}
     image_names = []
@@ -303,12 +285,10 @@ def main():
     for name, image in images.items():
         print(f"\nProcessing {name}...")
         
-        # Load Harris keypoints
         keypoints_file = os.path.join(keypoints_dir, f'{name}_harris_keypoints.txt')
         keypoints = load_harris_keypoints(keypoints_file)
         print(f"  Loaded {len(keypoints)} Harris keypoints")
         
-        # Extract SIFT descriptors
         descriptors, valid_keypoints = extract_descriptors_from_image(
             image, keypoints, args.patch_size)
         
@@ -325,17 +305,14 @@ def main():
         print("No descriptors extracted from any image. Exiting.")
         return
 
-    # Build visual vocabulary
     print(f"\nBuilding visual vocabulary with {args.vocab_size} words...")
     kmeans, vocabulary = build_visual_vocabulary(all_descriptors, args.vocab_size)
     
-    # Save vocabulary
     vocab_path = os.path.join(save_dir, 'visual_vocabulary.pkl')
     with open(vocab_path, 'wb') as f:
         pickle.dump({'kmeans': kmeans, 'vocabulary': vocabulary}, f)
     print(f"Saved visual vocabulary to: {vocab_path}")
 
-    # Compute BoW histograms
     print(f"\nComputing bag-of-words histograms...")
     bow_histograms = []
     
@@ -346,39 +323,32 @@ def main():
         
         print(f"  {name}: {len(descriptors)} descriptors -> BoW histogram (sum={histogram.sum():.3f})")
         
-        # Save individual histogram
         np.savetxt(os.path.join(save_dir, f'{name}_bow_histogram.txt'), 
                   histogram, fmt='%.6f', header=f'BoW histogram for {name}')
 
     bow_histograms = np.array(bow_histograms)
 
-    # Visualize BoW histograms
     visualize_bow_histograms(bow_histograms, image_names,
                            os.path.join(save_dir, 'bow_histograms.png'))
 
-    # Compute and visualize distance matrix
     print(f"\nComputing distance matrix...")
     distance_matrix = compute_distance_matrix(bow_histograms, metric='euclidean')
     
     visualize_distance_matrix(distance_matrix, image_names,
                             os.path.join(save_dir, 'bow_distance_matrix.png'))
 
-    # Save distance matrix
     np.savetxt(os.path.join(save_dir, 'bow_distance_matrix.txt'), 
               distance_matrix, fmt='%.6f', 
               header='BoW distance matrix (rows/cols: ' + ' '.join(image_names) + ')')
 
-    # Save all BoW histograms together
     np.savez(os.path.join(save_dir, 'bow_histograms.npz'),
              histograms=bow_histograms, image_names=image_names,
              distance_matrix=distance_matrix)
 
-    # Analysis
     print(f"\n=== SIFT Bag-of-Words Analysis ===")
     print(f"Visual vocabulary size: {args.vocab_size}")
     print(f"Total descriptors used: {sum(len(desc) for desc in all_descriptors)}")
     
-    # Same vs different animal analysis
     cardinal_indices = [i for i, name in enumerate(image_names) if 'cardinal' in name]
     leopard_indices = [i for i, name in enumerate(image_names) if 'leopard' in name]
     panda_indices = [i for i, name in enumerate(image_names) if 'panda' in name]
@@ -395,7 +365,6 @@ def main():
     all_indices = list(range(len(image_names)))
     for i in range(len(all_indices)):
         for j in range(i+1, len(all_indices)):
-            # Check if different classes
             name_i, name_j = image_names[i], image_names[j]
             if not ((('cardinal' in name_i and 'cardinal' in name_j) or
                     ('leopard' in name_i and 'leopard' in name_j) or

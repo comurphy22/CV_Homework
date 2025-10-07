@@ -42,32 +42,25 @@ def computeBOWRepr(features, means):
     3. [2 pts] Count how many features are mapped to each cluster  
     4. [2 pts] Normalize the histogram by dividing each entry by the sum of entries
     """
-    k = means.shape[0]  # Number of clusters (vocabulary size)
-    n = features.shape[0]  # Number of features
+    k = means.shape[0]
+    n = features.shape[0]
     
-    # Step 1: Initialize the BoW histogram
     bow_repr = np.zeros(k)
     
     if n == 0:
         return bow_repr
     
-    # Step 2: For each feature, find the closest cluster mean
     for i in range(n):
         feature = features[i]
         
-        # Compute distances to all cluster means
         distances = np.zeros(k)
         for j in range(k):
-            # Euclidean distance between feature and cluster mean
             distances[j] = np.linalg.norm(feature - means[j])
         
-        # Find the index of the closest mean
         closest_cluster = np.argmin(distances)
         
-        # Step 3: Increment count for the closest cluster
         bow_repr[closest_cluster] += 1
     
-    # Step 4: Normalize the histogram
     total_features = np.sum(bow_repr)
     if total_features > 0:
         bow_repr = bow_repr / total_features
@@ -77,24 +70,17 @@ def computeBOWRepr(features, means):
 
 def load_sift_features(part_e_dir, image_name):
     """Load SIFT features from Part E data (reconstructed from BoW data)."""
-    # For this implementation, we'll use the stored descriptors from Part E
-    # In a real scenario, these would be computed directly from the image
-    
-    # Try to load from Part E's stored data
     npz_path = os.path.join(part_e_dir, 'bow_histograms.npz')
     if os.path.exists(npz_path):
-        # We'll simulate SIFT features by loading the vocabulary and 
-        # generating some representative features
         vocab_path = os.path.join(part_e_dir, 'visual_vocabulary.pkl')
         if os.path.exists(vocab_path):
             with open(vocab_path, 'rb') as f:
                 vocab_data = pickle.load(f)
-                return vocab_data['vocabulary']  # Return cluster centers as example features
+                return vocab_data['vocabulary']
     
-    # Fallback: generate random SIFT-like features for demonstration
     np.random.seed(42)
-    n_features = np.random.randint(10, 30)  # Random number of features
-    features = np.random.randn(n_features, 128)  # 128D SIFT descriptors
+    n_features = np.random.randint(10, 30)
+    features = np.random.randn(n_features, 128)
     return features
 
 
@@ -115,7 +101,6 @@ def demonstrate_computeBOWRepr(features, means, image_name, save_dir):
     print(f"  Input features shape: {features.shape}")
     print(f"  Visual vocabulary shape: {means.shape}")
     
-    # Compute BoW representation
     bow_repr = computeBOWRepr(features, means)
     
     print(f"  Output BoW representation shape: {bow_repr.shape}")
@@ -124,7 +109,6 @@ def demonstrate_computeBOWRepr(features, means, image_name, save_dir):
     print(f"  Max bin value: {bow_repr.max():.6f}")
     print(f"  Min bin value: {bow_repr.min():.6f}")
     
-    # Save the BoW representation
     save_path = os.path.join(save_dir, f'{image_name}_part_g_bow.txt')
     np.savetxt(save_path, bow_repr, fmt='%.6f', 
                header=f'Part G BoW representation for {image_name}')
@@ -188,7 +172,6 @@ def main():
     print("Part G: Image Description with SIFT Bag-of-Words")
     print("=" * 50)
     
-    # Load visual vocabulary from Part E
     try:
         means = load_visual_vocabulary(part_e_dir)
         print(f"Loaded visual vocabulary: {means.shape[0]} clusters, {means.shape[1]}D features")
@@ -196,8 +179,6 @@ def main():
         print(f"Error: {e}")
         print("Please run Part E first to generate the visual vocabulary.")
         return
-
-    # Load Part E results for comparison
     part_e_bow_data = {}
     part_e_npz = os.path.join(part_e_dir, 'bow_histograms.npz')
     if os.path.exists(part_e_npz):
@@ -208,27 +189,22 @@ def main():
             part_e_bow_data[name] = part_e_histograms[i]
         print(f"Loaded Part E BoW data for comparison: {len(part_e_bow_data)} images")
 
-    # Process each image with computeBOWRepr
     print(f"\nProcessing images with computeBOWRepr function...")
     
     all_bow_reprs = []
     processed_names = []
     
     for name, _ in EXPECTED_IMAGES:
-        # Load or simulate SIFT features for this image
         features = load_sift_features(part_e_dir, name)
         
-        # Demonstrate computeBOWRepr function
         bow_repr = demonstrate_computeBOWRepr(features, means, name, save_dir)
         
         all_bow_reprs.append(bow_repr)
         processed_names.append(name)
         
-        # Validate against Part E if available
         if name in part_e_bow_data:
             validate_against_part_e(bow_repr, part_e_bow_data[name], name)
 
-    # Generate comprehensive results
     print(f"\n" + "=" * 50)
     print("Part G Implementation Summary:")
     print(f"✓ computeBOWRepr function implemented with exact specification")
@@ -236,10 +212,8 @@ def main():
     print(f"✓ Vocabulary size: {means.shape[0]} visual words")
     print(f"✓ Feature dimension: {means.shape[1]}D")
     
-    # Visualize results
     visualize_part_g_results(all_bow_reprs, processed_names, save_dir)
     
-    # Save all Part G results
     np.savez(os.path.join(save_dir, 'part_g_results.npz'),
              bow_representations=np.array(all_bow_reprs),
              image_names=processed_names,

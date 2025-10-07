@@ -67,21 +67,17 @@ def load_texture_representations(part_b_dir):
     
     data = np.load(npz_path)
     
-    # Load concatenated representations (stored by category, assign to both images)
     texture_repr_concat = {}
     for category in ['cardinal', 'leopard', 'panda']:
         key = f'{category}_concat'
         if key in data:
-            # Assign same concatenated representation to both images of this category
             for img_name in CATEGORIES[category]:
                 texture_repr_concat[img_name] = data[key]
     
-    # Load mean representations 
     texture_repr_mean = {}
     for category in ['cardinal', 'leopard', 'panda']:
         key = f'{category}_mean'
         if key in data:
-            # Assign same mean representation to both images of this category
             for img_name in CATEGORIES[category]:
                 texture_repr_mean[img_name] = data[key]
     
@@ -105,21 +101,18 @@ def compute_within_between_distances(representations, image_names):
     within_distances = []
     between_distances = []
     
-    # Compute all pairwise distances
     for i, name1 in enumerate(image_names):
         for j, name2 in enumerate(image_names):
-            if i >= j:  # Avoid duplicates and self-comparisons
+            if i >= j:
                 continue
                 
             if name1 not in representations or name2 not in representations:
                 continue
                 
-            # Compute Euclidean distance
             vec1 = representations[name1]
             vec2 = representations[name2]
             distance = np.linalg.norm(vec1 - vec2)
             
-            # Determine if this is within-class or between-class
             category1 = None
             category2 = None
             
@@ -130,17 +123,13 @@ def compute_within_between_distances(representations, image_names):
                     category2 = cat
             
             if category1 == category2 and category1 is not None:
-                # Same class (within-class)
                 within_distances.append(distance)
             elif category1 != category2 and category1 is not None and category2 is not None:
-                # Different classes (between-class)
                 between_distances.append(distance)
     
-    # Compute averages
     avg_within = np.mean(within_distances) if within_distances else 0.0
     avg_between = np.mean(between_distances) if between_distances else 0.0
     
-    # Compute ratio as specified in Part H: within/between
     ratio = avg_within / avg_between if avg_between > 0 else float('inf')
     
     return within_distances, between_distances, avg_within, avg_between, ratio
@@ -150,17 +139,14 @@ def create_word_document(results, save_path):
     """Create a Word document with the Part H results."""
     doc = Document()
     
-    # Title
     title = doc.add_heading('Part H: Comparison of Image Descriptions', 0)
-    title.alignment = 1  # Center alignment
+    title.alignment = 1
     
-    # Date
     date_para = doc.add_paragraph(f'Generated on: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
-    date_para.alignment = 1  # Center alignment
+    date_para.alignment = 1
     
-    doc.add_paragraph()  # Empty line
+    doc.add_paragraph()
     
-    # Introduction
     intro = doc.add_heading('Introduction', level=1)
     doc.add_paragraph(
         'This document presents the comparison of three different image representation methods '
@@ -169,7 +155,6 @@ def create_word_document(results, save_path):
         'between-class distances (images of different objects are different).'
     )
     
-    # Methodology
     method = doc.add_heading('Methodology', level=1)
     doc.add_paragraph('• Dataset: 6 animal images (2 cardinals, 2 leopards, 2 pandas)')
     doc.add_paragraph('• Distance metric: Euclidean distance between representation vectors')
@@ -178,14 +163,11 @@ def create_word_document(results, save_path):
     doc.add_paragraph('• Quality metric: average_within_class_distance / average_between_class_distance')
     doc.add_paragraph('• Lower ratio indicates better discriminative power')
     
-    # Results Summary
     summary = doc.add_heading('Results Summary', level=1)
     
-    # Create table
     table = doc.add_table(rows=1, cols=5)
     table.style = 'Table Grid'
     
-    # Header row
     hdr_cells = table.rows[0].cells
     hdr_cells[0].text = 'Representation Method'
     hdr_cells[1].text = 'Avg Within-Class'
@@ -193,10 +175,8 @@ def create_word_document(results, save_path):
     hdr_cells[3].text = 'Within/Between Ratio'
     hdr_cells[4].text = 'Rank'
     
-    # Sort results by ratio (lower is better)
     sorted_results = sorted(results.items(), key=lambda x: x[1]['ratio'])
     
-    # Add data rows
     for rank, (method, data) in enumerate(sorted_results, 1):
         row_cells = table.add_row().cells
         row_cells[0].text = method.replace('_', ' ').title()
@@ -205,7 +185,6 @@ def create_word_document(results, save_path):
         row_cells[3].text = f"{data['ratio']:.6f}"
         row_cells[4].text = str(rank)
     
-    # Detailed Results
     details = doc.add_heading('Detailed Analysis', level=1)
     
     for method, data in sorted_results:
@@ -225,9 +204,8 @@ def create_word_document(results, save_path):
             between_range = f"[{min(data['between_distances']):.4f}, {max(data['between_distances']):.4f}]"
             doc.add_paragraph(f"Between-class distance range: {between_range}")
         
-        doc.add_paragraph()  # Empty line
+        doc.add_paragraph()
     
-    # Conclusions
     conclusions = doc.add_heading('Conclusions', level=1)
     best_method = sorted_results[0][0].replace('_', ' ').title()
     best_ratio = sorted_results[0][1]['ratio']
@@ -239,7 +217,6 @@ def create_word_document(results, save_path):
         f'while maintaining similarity within the same category.'
     )
     
-    # Save document
     doc.save(save_path)
 
 
@@ -260,15 +237,12 @@ def main():
     print("Part H: Comparison of Image Descriptions (10 points)")
     print("=" * 55)
     
-    # Load all required representations
     print("Loading representations...")
     
     try:
-        # [2 pts] Load the cardinal, leopard, and panda images (100x100)
         image_names = [name for name, _ in EXPECTED_IMAGES]
         print(f"✓ Image list prepared: {len(image_names)} images")
         
-        # [2 pts] Use the code written above to compute representations
         bow_repr = load_bow_representations(part_e_dir)
         print(f"✓ Loaded BoW representations: {len(bow_repr)} images")
         
@@ -289,7 +263,6 @@ def main():
     
     results = {}
     
-    # [6 pts] Compute and print the ratio for each representation
     print(f"\nComputing within-class and between-class distances...")
     
     for repr_name, repr_data in representations.items():
@@ -299,7 +272,6 @@ def main():
             repr_data, image_names
         )
         
-        # Store results
         results[repr_name] = {
             'within_distances': within_dist,
             'between_distances': between_dist,
@@ -308,14 +280,12 @@ def main():
             'ratio': ratio
         }
         
-        # Print results as specified in Part H
         print(f"  Average within-class distance: {avg_within:.6f}")
         print(f"  Average between-class distance: {avg_between:.6f}")
         print(f"  Ratio (average_within_class_distance / average_between_class_distance): {ratio:.6f}")
         print(f"  Within-class pairs: {len(within_dist)}")
         print(f"  Between-class pairs: {len(between_dist)}")
     
-    # Print summary comparison
     print(f"\n" + "=" * 55)
     print("SUMMARY COMPARISON")
     print("=" * 55)
@@ -333,12 +303,10 @@ def main():
     print(f"\nBest performing method: {best_method.replace('_', ' ')} "
           f"(ratio: {sorted_results[0][1]['ratio']:.6f})")
     
-    # Save numerical results
     results_file = os.path.join(save_dir, 'part_h_results.npz')
     np.savez(results_file, **{f'{k}_data': v for k, v in results.items()})
     print(f"\nSaved numerical results: {results_file}")
     
-    # Create Word file named results.doc and put the ratio
     print(f"\nCreating Word document...")
     word_file = os.path.join(save_dir, 'results.doc')
     
@@ -350,7 +318,6 @@ def main():
     except ImportError:
         print(f"Warning: python-docx not installed. Creating text file instead.")
         
-        # Fallback to text file
         text_file = os.path.join(save_dir, 'results.txt')
         with open(text_file, 'w') as f:
             f.write("Part H: Comparison of Image Descriptions\n")
